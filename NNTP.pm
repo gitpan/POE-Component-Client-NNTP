@@ -16,7 +16,7 @@ use Socket;
 use Sys::Hostname;
 use vars qw($VERSION);
 
-$VERSION = '0.1';
+$VERSION = '0.2';
 
 use constant PCI_REFCOUNT_TAG => "P::C::C::N::W registered";
 
@@ -242,14 +242,14 @@ sub send_cmd {
   my ($kernel,$heap) = @_[KERNEL,HEAP];
   my $arg = join ' ', @_[ARG0 .. $#_];
 
-  $heap->{socket}->put("$arg\n") if ( defined ( $heap->{socket} ) );
+  $heap->{socket}->put($arg) if ( defined ( $heap->{socket} ) );
 }
 
 sub accept_input {
   my ($kernel,$heap,$state) = @_[KERNEL,HEAP,STATE];
   my $arg = join ' ', @_[ARG0 .. $#_];
 
-  $heap->{socket}->put("$state $arg\n") if ( defined ( $heap->{socket} ) );
+  $heap->{socket}->put("$state $arg") if ( defined ( $heap->{socket} ) );
 }
 
 sub send_post {
