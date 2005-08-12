@@ -9,6 +9,7 @@
 package POE::Component::Client::NNTP;
 
 use strict;
+use warnings;
 use POE qw( Wheel::SocketFactory Wheel::ReadWrite Driver::SysRW
             Filter::Line Filter::Stream );
 use Carp;
@@ -16,7 +17,7 @@ use Socket;
 use Sys::Hostname;
 use vars qw($VERSION);
 
-$VERSION = '0.2';
+$VERSION = '0.3';
 
 use constant PCI_REFCOUNT_TAG => "P::C::C::N::W registered";
 
@@ -40,47 +41,49 @@ sub spawn {
   $hash->{'NNTPServer'} = $ENV{'NNTPSERVER'} unless defined ( $hash->{'NNTPServer'} );
   $hash->{'Port'} = 119 unless defined ( $hash->{'Port'} );
   
+  my $self = bless { }, $package;
+  
+  $self->{remoteserver} = $hash->{'NNTPServer'};
+  $self->{serverport} = $hash->{'Port'};
+  $self->{localaddr} = $hash->{'LocalAddr'};
+
   POE::Session->create(
-			package_states => [
-                          $package => [ qw(_start _stop _sock_up _sock_down _sock_failed _parseline register unregister shutdown send_cmd connect send_post) ],
-			  $package => $package_events,
+			object_states => [
+                          $self => [ qw(_start _stop _sock_up _sock_down _sock_failed _parseline register unregister shutdown send_cmd connect send_post) ],
+			  $self => $package_events,
 			],
                      	args => [ $alias, @_ ],
-			heap => { 'remoteserver' => $hash->{'NNTPServer'},
-				  'serverport' => $hash->{'Port'},
-				  'localaddr' => $hash->{'LocalAddr'},
-				},
 		      );
 }
 
 # Register and unregister to receive events
 
 sub register {
-  my ($kernel, $heap, $session, $sender, @events) =
-    @_[KERNEL, HEAP, SESSION, SENDER, ARG0 .. $#_];
+  my ($kernel, $self, $session, $sender, @events) =
+    @_[KERNEL, OBJECT, SESSION, SENDER, ARG0 .. $#_];
 
   die "Not enough arguments" unless @events;
 
   foreach (@events) {
     $_ = "nntp_" . $_ unless /^_/;
-    $heap->{events}->{$_}->{$sender} = $sender;
-    $heap->{sessions}->{$sender}->{'ref'} = $sender;
-    unless ($heap->{sessions}->{$sender}->{refcnt}++ or $session == $sender) {
+    $self->{events}->{$_}->{$sender} = $sender;
+    $self->{sessions}->{$sender}->{'ref'} = $sender;
+    unless ($self->{sessions}->{$sender}->{refcnt}++ or $session == $sender) {
       $kernel->refcount_increment($sender->ID(), PCI_REFCOUNT_TAG);
     }
   }
 }
 
 sub unregister {
-  my ($kernel, $heap, $session, $sender, @events) =
-    @_[KERNEL,  HEAP, SESSION,  SENDER,  ARG0 .. $#_];
+  my ($kernel, $self, $session, $sender, @events) =
+    @_[KERNEL,  OBJECT, SESSION,  SENDER,  ARG0 .. $#_];
 
   die "Not enough arguments" unless @events;
 
   foreach (@events) {
-    delete $heap->{events}->{$_}->{$sender};
-    if (--$heap->{sessions}->{$sender}->{refcnt} <= 0) {
-      delete $heap->{sessions}->{$sender};
+    delete $self->{events}->{$_}->{$sender};
+    if (--$self->{sessions}->{$sender}->{refcnt} <= 0) {
+      delete $self->{sessions}->{$sender};
       unless ($session == $sender) {
         $kernel->refcount_decrement($sender->ID(), PCI_REFCOUNT_TAG);
       }
@@ -91,7 +94,7 @@ sub unregister {
 # Session starts or stops
 
 sub _start {
-  my ($kernel, $session, $heap, $alias) = @_[KERNEL, SESSION, HEAP, ARG0];
+  my ($kernel, $session, $self, $alias) = @_[KERNEL, SESSION, OBJECT, ARG0];
   my @options = @_[ARG1 .. $#_];
 
   $session->option( @options ) if @options;
@@ -99,55 +102,55 @@ sub _start {
 }
 
 sub _stop {
-  my ($kernel, $heap, $quitmsg) = @_[KERNEL, HEAP, ARG0];
+  my ($kernel, $self, $quitmsg) = @_[KERNEL, OBJECT, ARG0];
 
-  if ($heap->{connected}) {
+  if ($self->{connected}) {
     $kernel->call( $_[SESSION], 'shutdown', $quitmsg );
   }
 }
 
 sub connect {
-  my ($kernel, $heap, $session) = @_[KERNEL, HEAP, SESSION];
+  my ($kernel, $self, $session) = @_[KERNEL, OBJECT, SESSION];
 
-  if ($heap->{'socket'}) {
+  if ($self->{'socket'}) {
         $kernel->call ($session, 'squit');
   }
 
-  $heap->{socketfactory} = POE::Wheel::SocketFactory->new(
+  $self->{socketfactory} = POE::Wheel::SocketFactory->new(
                                         SocketDomain => AF_INET,
                                         SocketType => SOCK_STREAM,
                                         SocketProtocol => 'tcp',
-                                        RemoteAddress => $heap->{'remoteserver'},
-                                        RemotePort => $heap->{'serverport'},
+                                        RemoteAddress => $self->{'remoteserver'},
+                                        RemotePort => $self->{'serverport'},
                                         SuccessEvent => '_sock_up',
                                         FailureEvent => '_sock_failed',
-                                        ( $heap->{localaddr} ? (BindAddress => $heap->{localaddr}) : () ),
+                                        ( $self->{localaddr} ? (BindAddress => $self->{localaddr}) : () ),
   );
 
 }
 
 # Internal function called when a socket is closed.
 sub _sock_down {
-  my ($kernel, $heap) = @_[KERNEL, HEAP];
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   # Destroy the RW wheel for the socket.
-  delete $heap->{'socket'};
-  $heap->{connected} = 0;
+  delete $self->{'socket'};
+  $self->{connected} = 0;
 
-  foreach (keys %{$heap->{sessions}}) {
-    $kernel->post( $heap->{sessions}->{$_}->{'ref'},
-                   'nntp_disconnected', $heap->{'remoteserver'} );
+  foreach (keys %{$self->{sessions}}) {
+    $kernel->post( $self->{sessions}->{$_}->{'ref'},
+                   'nntp_disconnected', $self->{'remoteserver'} );
   }
 }
 
 sub _sock_up {
-  my ($kernel,$heap,$session,$socket) = @_[KERNEL,HEAP,SESSION,ARG0];
+  my ($kernel,$self,$session,$socket) = @_[KERNEL,OBJECT,SESSION,ARG0];
 
-  delete $heap->{socketfactory};
+  delete $self->{socketfactory};
 
-  $heap->{localaddr} = (unpack_sockaddr_in( getsockname $socket))[1];
+  $self->{localaddr} = (unpack_sockaddr_in( getsockname $socket))[1];
 
-  $heap->{'socket'} = new POE::Wheel::ReadWrite
+  $self->{'socket'} = new POE::Wheel::ReadWrite
   (
         Handle => $socket,
         Driver => POE::Driver::SysRW->new(),
@@ -156,54 +159,54 @@ sub _sock_up {
         ErrorEvent => '_sock_down',
    );
 
-  if ($heap->{'socket'}) {
-        $heap->{connected} = 1;
+  if ($self->{'socket'}) {
+        $self->{connected} = 1;
   } else {
-        _send_event ( $kernel, $heap, 'nntp_socketerr', "Couldn't create ReadWrite wheel for NNTP socket" );
+        _send_event ( $kernel, $self, 'nntp_socketerr', "Couldn't create ReadWrite wheel for NNTP socket" );
   }
 
-  foreach (keys %{$heap->{sessions}}) {
-        $kernel->post( $heap->{sessions}->{$_}->{'ref'}, 'nntp_connected', $heap->{remoteserver} );
+  foreach (keys %{$self->{sessions}}) {
+        $kernel->post( $self->{sessions}->{$_}->{'ref'}, 'nntp_connected', $self->{remoteserver} );
   }
 }
 
 sub _sock_failed {
-  my ($kernel, $heap, $op, $errno, $errstr) = @_[KERNEL, HEAP, ARG0..ARG2];
+  my ($kernel, $self, $op, $errno, $errstr) = @_[KERNEL, OBJECT, ARG0..ARG2];
 
-  _send_event( $kernel, $heap, 'nntp_socketerr', "$op error $errno: $errstr" );
+  _send_event( $kernel, $self, 'nntp_socketerr', "$op error $errno: $errstr" );
 }
 
 # Parse each line from received at the socket
 
 sub _parseline {
-  my ($kernel, $session, $heap, $line) = @_[KERNEL, SESSION, HEAP, ARG0];
+  my ($kernel, $session, $self, $line) = @_[KERNEL, SESSION, OBJECT, ARG0];
 
   SWITCH: {
-    if ( $line =~ /^\.$/ and defined ( $heap->{current_event} ) ) {
-      _send_event( $kernel, $heap, $session, 'nntp_' . shift( @{ $heap->{current_event} } ), @{ $heap->{current_event} }, $heap->{current_text} );
-      delete ( $heap->{current_event} );
-      delete ( $heap->{current_text} );
+    if ( $line =~ /^\.$/ and defined ( $self->{current_event} ) ) {
+      _send_event( $kernel, $self, $session, 'nntp_' . shift( @{ $self->{current_event} } ), @{ $self->{current_event} }, $self->{current_text} );
+      delete ( $self->{current_event} );
+      delete ( $self->{current_text} );
       last SWITCH;
     }
-    if ( $line =~ /^([0-9]{3}) +(.+)$/ and not defined ( $heap->{current_event} ) ) {
+    if ( $line =~ /^([0-9]{3}) +(.+)$/ and not defined ( $self->{current_event} ) ) {
       my ($current_event) = [ $1, $2 ];
       if ( $1 =~ /(220|221|222|100|215|231|230)/ ) {
-        $heap->{current_event} = $current_event;
-        $heap->{current_text} = [ ];
+        $self->{current_event} = $current_event;
+        $self->{current_text} = [ ];
       } else {
-	_send_event( $kernel, $heap, $session, 'nntp_' . $1, $2 );
+	_send_event( $kernel, $self, $session, 'nntp_' . $1, $2 );
       }
       last SWITCH;
     }
-    if ( defined ( $heap->{current_event} ) ) {
-      push ( @{ $heap->{current_text} }, $line );
+    if ( defined ( $self->{current_event} ) ) {
+      push ( @{ $self->{current_text} }, $line );
       last SWITCH;
     }
   }
 
 #  foreach my $ev (@cooked) {
 #    $ev->{name} = 'nntp_' . $ev->{name};
-#    _send_event( $kernel, $heap, $session, $ev->{name}, @{$ev->{args}} );
+#    _send_event( $kernel, $self, $session, $ev->{name}, @{$ev->{args}} );
 #  }
 }
 
@@ -213,11 +216,11 @@ sub _parseline {
 # doesn't need to be one and I don't need the overhead.
 
 sub _send_event  {
-  my ($kernel, $heap, $session, $event, @args) = @_;
+  my ($kernel, $self, $session, $event, @args) = @_;
   my %sessions;
 
-  foreach (values %{$heap->{events}->{'nntp_all'}},
-           values %{$heap->{events}->{$event}}) {
+  foreach (values %{$self->{events}->{'nntp_all'}},
+           values %{$self->{events}->{$event}}) {
     $sessions{$_} = $_;
   }
   # $kernel->call( $session, $event, @args ) if ( defined ($sessions{$session}) );
@@ -227,33 +230,33 @@ sub _send_event  {
 }
 
 sub shutdown {
-  my ($kernel, $heap) = @_[KERNEL, HEAP];
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   foreach ($kernel->alias_list( $_[SESSION] )) {
     $kernel->alias_remove( $_ );
   }
 
   foreach (qw(socket sock socketfactory dcc wheelmap)) {
-    delete $heap->{$_};
+    delete $self->{$_};
   }
 }
 
 sub send_cmd {
-  my ($kernel,$heap) = @_[KERNEL,HEAP];
+  my ($kernel,$self) = @_[KERNEL,OBJECT];
   my $arg = join ' ', @_[ARG0 .. $#_];
 
-  $heap->{socket}->put($arg) if ( defined ( $heap->{socket} ) );
+  $self->{socket}->put($arg) if ( defined ( $self->{socket} ) );
 }
 
 sub accept_input {
-  my ($kernel,$heap,$state) = @_[KERNEL,HEAP,STATE];
+  my ($kernel,$self,$state) = @_[KERNEL,OBJECT,STATE];
   my $arg = join ' ', @_[ARG0 .. $#_];
 
-  $heap->{socket}->put("$state $arg") if ( defined ( $heap->{socket} ) );
+  $self->{socket}->put("$state $arg") if ( defined ( $self->{socket} ) );
 }
 
 sub send_post {
-  my ($kernel,$heap) = @_[KERNEL,HEAP];
+  my ($kernel,$self) = @_[KERNEL,OBJECT];
 
   unless ( ref $_[ARG0] eq 'ARRAY' ) {
 	croak "Argument to send_post must be an array ref";
