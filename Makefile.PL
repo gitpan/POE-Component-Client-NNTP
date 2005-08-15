@@ -7,7 +7,7 @@ WriteMakefile(
 			  'PM'      => { 'NNTP.pm' => '$(INST_LIBDIR)/NNTP.pm',
 						   },
 			  'PREREQ_PM' => {
-							  'POE'    => 0.06_07,
+							  'POE'    => 0.31,
 							  'Carp'   => 0,
 							  'Socket' => 0,
 							 },

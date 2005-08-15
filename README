@@ -30,14 +30,12 @@ $kernel->post ( 'NNTP-Client' => 'article' => 51 );
 The component returns a 'nntp_220' event:-
 
 sub nntp_220 {
-  my ($event,$details) = @_[ARG0,ARG1];
-
-  my ($response_text) = $details->[0];
+  my ($text,$article) = @_[ARG0,ARG1];
 
   # Print the article to screen
 
-  foreach ( @{ $details->[1] } ) {
-	print "$_\n";
+  foreach ( @{ $article } ) {
+	print "$_";
   }
 
   # Done
