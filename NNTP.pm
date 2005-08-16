@@ -17,7 +17,7 @@ use Socket;
 use Sys::Hostname;
 use vars qw($VERSION);
 
-$VERSION = '0.4';
+$VERSION = '0.5';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
@@ -166,7 +166,7 @@ sub _sock_up {
   if ($self->{'socket'}) {
         $self->{connected} = 1;
   } else {
-        _send_event ( $kernel, $self, 'nntp_socketerr', "Couldn't create ReadWrite wheel for NNTP socket" );
+        $self->_send_event ( 'nntp_socketerr', "Couldn't create ReadWrite wheel for NNTP socket" );
   }
 
   foreach (keys %{$self->{sessions}}) {
@@ -178,7 +178,7 @@ sub _sock_up {
 sub _sock_failed {
   my ($kernel, $self, $op, $errno, $errstr) = @_[KERNEL, OBJECT, ARG0..ARG2];
 
-  _send_event( $kernel, $self, 'nntp_socketerr', "$op error $errno: $errstr" );
+  $self->_send_event( 'nntp_socketerr', "$op error $errno: $errstr" );
   undef;
 }
 
@@ -189,7 +189,7 @@ sub _parseline {
 
   SWITCH: {
     if ( $line =~ /^\.$/ and defined ( $self->{current_event} ) ) {
-      _send_event( $kernel, $self, $session, 'nntp_' . shift( @{ $self->{current_event} } ), @{ $self->{current_event} }, $self->{current_text} );
+      $self->_send_event( 'nntp_' . shift( @{ $self->{current_event} } ), @{ $self->{current_event} }, $self->{current_text} );
       delete ( $self->{current_event} );
       delete ( $self->{current_text} );
       last SWITCH;
@@ -200,7 +200,7 @@ sub _parseline {
         $self->{current_event} = $current_event;
         $self->{current_text} = [ ];
       } else {
-	_send_event( $kernel, $self, $session, 'nntp_' . $1, $2 );
+	$self->_send_event( 'nntp_' . $1, $2 );
       }
       last SWITCH;
     }
@@ -217,16 +217,15 @@ sub _parseline {
 # doesn't need to be one and I don't need the overhead.
 
 sub _send_event  {
-  my ($kernel, $self, $session, $event, @args) = @_;
+  my ($self, $event, @args) = @_;
   my %sessions;
 
   foreach (values %{$self->{events}->{'nntp_all'}},
            values %{$self->{events}->{$event}}) {
     $sessions{$_} = $_;
   }
-  # $kernel->call( $session, $event, @args ) if ( defined ($sessions{$session}) );
   foreach (values %sessions) {
-    $kernel->post( $_, $event, @args ) unless ( $_ eq $session );
+    $poe_kernel->post( $_, $event, @args );
   }
 }
 
@@ -271,6 +270,9 @@ sub send_post {
   }
 }
 
+1;
+__END__
+
 =head1 NAME
 
 POE::Component::Client::NNTP - A component that provides access to NNTP.
@@ -297,7 +299,7 @@ send it a 'register' event to start receiving responses from the component.
 The component takes commands in the form of events and returns the salient responses from the NNTP
 server.
 
-=head1 METHODS
+=head1 CONSTRUCTOR
 
 =over
 
@@ -464,6 +466,10 @@ Eg.
 
 =back
 
+=head1 CAVEATS
+
+The group event sets the current working group on the server end. If you want to use group and numeric form of article|head|etc then you will have to spawn multiple instances of the component for each group you want to access concurrently.
+
 =head1 AUTHOR
 
 Chris Williams, E<lt>chris@bingosnet.co.uk<gt>
@@ -476,3 +482,4 @@ RFC 977  L<http://www.faqs.org/rfcs/rfc977.html>
 
 RFC 2980 L<http://www.faqs.org/rfcs/rfc2980.html>
 
+=cut
