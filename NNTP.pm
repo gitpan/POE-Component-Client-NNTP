@@ -17,7 +17,7 @@ use Socket;
 use Sys::Hostname;
 use vars qw($VERSION);
 
-$VERSION = '0.5';
+$VERSION = '0.91';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
@@ -279,13 +279,96 @@ POE::Component::Client::NNTP - A component that provides access to NNTP.
 
 =head1 SYNOPSIS
 
+   # Connects to NNTP Server, selects a group, then downloads all current articles.
+   use POE;
    use POE::Component::Client::NNTP;
+   use Mail::Internet;
+   use FileHandle;
+
+   $|=1;
 
    POE::Component::Client::NNTP->spawn ( 'NNTP-Client', { NNTPServer => 'news.host' } );
 
-   $kernel->post ( 'NNTP-Client' => register => 'all' );
+   POE::Session->create(
+	package_states => [
+		'main' => { nntp_disconnected => '_shutdown',
+			    nntp_socketerr    => '_shutdown',
+			    nntp_421          => '_shutdown',
+			    nntp_200	      => '_connected',
+			    nntp_201	      => '_connected',
+		},
+		'main' => [ qw(_start nntp_211 nntp_220 nntp_223)
+		],
+	],
+   );
 
-   $kernel->post ( 'NNTP-Client' => article => '51' );
+   $poe_kernel->run();
+   exit 0;
+
+   sub _start {
+	my ($kernel,$heap) = @_[KERNEL,HEAP];
+	
+	# Our session starts, register to receive all events from poco-client-nntp
+	$kernel->post ( 'NNTP-Client' => register => 'all' );
+	# Okay, ask it to connect to the server
+	$kernel->post ( 'NNTP-Client' => 'connect' );
+	undef;
+   }
+
+   sub _connected {
+	my ($kernel,$heap,$text) = @_[KERNEL,HEAP,ARG0];
+
+	print "$text\n";
+
+	# Select a group to download from.
+	$kernel->post( 'NNTP-Client' => group => 'random.group' );
+	undef;
+   }
+
+   sub nntp_211 {
+	my ($kernel,$heap,$text) = @_[KERNEL,HEAP,ARG0];
+	print "$text\n";
+
+	# The NNTP server sets 'current article pointer' to first article in the group.
+	# Retrieve the first article
+	$kernel->post( 'NNTP-Client' => 'article' );
+   }
+
+   sub nntp_220 {
+	my ($kernel,$heap,$text,$article) = @_[KERNEL,HEAP,ARG0,ARG1];
+	print "$text\n";
+
+	my $message = Mail::Internet->new( $article );
+	my $filename = $message->head->get( 'Message-ID' );
+	my $fh = new FileHandle "> articles/$filename";
+	$message->print( $fh );
+	$fh->close;
+
+	# Set 'current article pointer' to the 'next' article in the group.
+	$kernel->post( 'NNTP-Client' => 'next' );
+	undef;
+   }
+
+   sub nntp_223 {
+	my ($kernel,$heap,$text) = @_[KERNEL,HEAP,ARG0];
+	print "$text\n";
+
+	# Server has moved to 'next' article. Retrieve it.
+	# If there isn't a 'next' article an 'nntp_421' is generated
+	# which will call '_shutdown'
+	$kernel->post( 'NNTP-Client' => 'article' );
+	undef;
+   }
+
+   sub _shutdown {
+	my ($kernel,$heap) = @_[KERNEL,HEAP];
+
+	# We got disconnected or a socketerr unregister and terminate the component.
+	$kernel->post ( 'NNTP-Client' => unregister => 'all' );
+	$kernel->post ( 'NNTP-Client' => 'shutdown' );
+	undef;
+   }
+
 
 =head1 DESCRIPTION
 
@@ -305,11 +388,18 @@ server.
 
 =item spawn
 
-Takes two arguments, a kernel alias to christen the new component with and a hashref. Possible values
-for the hashref are: NNTPServer, the DNS name or IP address of the NNTP host to connect to; Port, the 
-IP port on that host; LocalAddr, an IP address on the client to connect from. If NNTPServer is not specified, 
-the default is 'news', unless the environment variable 'NNTPServer' is set. If Port is not specified the default
-is 119.
+Takes two arguments, a kernel alias to christen the new component with and a hashref. 
+
+Possible values for the hashref are:
+
+   'NNTPServer', the DNS name or IP address of the NNTP host to connect to; 
+   'Port', the IP port on that host
+   'LocalAddr', an IP address on the client to connect from. 
+
+If 'NNTPServer' is not specified, the default is 'news', unless the environment variable 'NNTPServer' is set. If 'Port' is not specified the default is 119.
+
+  POE::Component::Client::NNTP->spawn( 'NNTP-Client', { NNTPServer => 'news', Port => 119,
+		LocalAddr => '192.168.1.99' } );
 
 =back
 
@@ -330,6 +420,8 @@ Registering for 'all' will cause it to send all NNTP-related events to you; this
 
 Takes N arguments: a list of event names which you don't want to receive. If you've previously done a 'register' for a particular event which you no longer care about, this event will tell the NNTP connection to stop sending them to you. (If you haven't, it just ignores you. No big deal).
 
+Please ensure that you always 'unregister' with the component before asking it to 'shutdown'.
+
 =item connect
 
 Takes no arguments. Tells the NNTP component to start up a connection to the previously specified NNTP server. You will 
@@ -339,9 +431,11 @@ receive a 'nntp_connected' event.
 
 Takes no arguments. Terminates the component.
 
+Always ensure that you call 'unregister' before shutting down the component.
+
 =back
 
-The following are implemented NNTP commands, check RFC 977 for the arguments accepted by each. Arguments can be passed as a single scalar or a list of arguments:
+The following are implemented NNTP commands, check RFC 977 L<http://www.faqs.org/rfcs/rfc977.html> for the arguments accepted by each. Arguments can be passed as a single scalar or a list of arguments:
 
 =over
 
@@ -412,7 +506,7 @@ Takes no arguments.
 =item authinfo
 
 Takes two arguments: first argument is either 'user' or 'pass', second argument is the user or password, respectively. 
-Not technically part of RFC 977, but covered in RFC 2980 L<http://www.faqs.org/rfcs/rfc2980.html>.
+Not technically part of RFC 977 L<http://www.faqs.org/rfcs/rfc977.html>, but covered in RFC 2980 L<http://www.faqs.org/rfcs/rfc2980.html>.
 
 =item send_cmd
 
@@ -464,7 +558,55 @@ Eg.
     undef;
   }
 
+Possible nntp_ values are:
+
+   100 help text follows
+   199 debug output
+
+   200 server ready - posting allowed
+   201 server ready - no posting allowed
+   202 slave status noted
+   205 closing connection - goodbye!
+   211 n f l s group selected
+   215 list of newsgroups follows
+   220 n <a> article retrieved - head and body follow 221 n <a> article
+   retrieved - head follows
+   222 n <a> article retrieved - body follows
+   223 n <a> article retrieved - request text separately 230 list of new
+   articles by message-id follows
+   231 list of new newsgroups follows
+   235 article transferred ok
+   240 article posted ok
+
+   335 send article to be transferred.  End with <CR-LF>.<CR-LF>
+   340 send article to be posted. End with <CR-LF>.<CR-LF>
+
+   400 service discontinued
+   411 no such news group
+   412 no newsgroup has been selected
+   420 no current article has been selected
+   421 no next article in this group
+   422 no previous article in this group
+   423 no such article number in this group
+   430 no such article found
+   435 article not wanted - do not send it
+   436 transfer failed - try again later
+   437 article rejected - do not try again.
+   440 posting not allowed
+   441 posting failed
+
+   500 command not recognized
+   501 command syntax error
+   502 access restriction or permission denied
+   503 program fault - command not performed
+
 =back
+
+=head1 TODO
+
+Abstract the NNTP protocol parsing into a L<POE::Filter>.
+
+Implement a plugin system.
 
 =head1 CAVEATS
 
