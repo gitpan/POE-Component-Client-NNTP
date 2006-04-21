@@ -8,6 +8,7 @@
 
 package POE::Component::Client::NNTP;
 
+use 5.006;
 use strict;
 use warnings;
 use POE qw( Wheel::SocketFactory Wheel::ReadWrite Driver::SysRW
@@ -17,27 +18,20 @@ use Socket;
 use Sys::Hostname;
 use vars qw($VERSION);
 
-$VERSION = '0.91';
+$VERSION = '1.00';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
-  my ($package_events) = {};
+  my $package_events = {};
 
-  foreach ( qw(article body head stat group help ihave last list newgroups newnews next post quit slave authinfo) ) {
-    $package_events->{$_} = 'accept_input';
-  }
+  $package_events->{$_} = 'accept_input' for qw(article body head stat group help ihave last list newgroups newnews next post quit slave authinfo);
 
-  unless ( $alias ) {
-        croak "Not enough parameters to $package::spawn()";
-  }
-
-  unless (ref $hash eq 'HASH') {
-        croak "Second argument to $package::spawn() must be a hash reference";
-  }
+  croak "Not enough parameters to $package::spawn()" unless $alias;
+  croak "Second argument to $package::spawn() must be a hash reference" unless ref $hash eq 'HASH';
   
-  $hash->{'NNTPServer'} = "news" unless ( defined ( $hash->{'NNTPServer'} ) or defined ( $ENV{'NNTPSERVER'} ) );
-  $hash->{'NNTPServer'} = $ENV{'NNTPSERVER'} unless defined ( $hash->{'NNTPServer'} );
-  $hash->{'Port'} = 119 unless defined ( $hash->{'Port'} );
+  $hash->{'NNTPServer'} = "news" unless defined $hash->{'NNTPServer'} or defined $ENV{'NNTPSERVER'};
+  $hash->{'NNTPServer'} = $ENV{'NNTPSERVER'} unless defined $hash->{'NNTPServer'};
+  $hash->{'Port'} = 119 unless defined $hash->{'Port'};
   
   my $self = bless { }, $package;
   
@@ -50,6 +44,7 @@ sub spawn {
                           $self => [ qw(_start _stop _sock_up _sock_down _sock_failed _parseline register unregister shutdown send_cmd connect send_post) ],
 			  $self => $package_events,
 			],
+			heap => $self,
                      	args => [ $alias, @_ ],
   )->ID();
   return $self;
@@ -63,12 +58,13 @@ sub register {
 
   die "Not enough arguments" unless @events;
 
+  my $sender_id = $sender->ID();
   foreach (@events) {
     $_ = "nntp_" . $_ unless /^_/;
-    $self->{events}->{$_}->{$sender} = $sender;
-    $self->{sessions}->{$sender}->{'ref'} = $sender;
-    unless ($self->{sessions}->{$sender}->{refcnt}++ or $session == $sender) {
-      $kernel->refcount_increment($sender->ID(), __PACKAGE__ );
+    $self->{events}->{$_}->{$sender_id} = $sender_id;
+    $self->{sessions}->{$sender_id}->{'ref'} = $sender_id;
+    unless ($self->{sessions}->{$sender_id}->{refcnt}++ or $session == $sender) {
+      $kernel->refcount_increment($sender_id, __PACKAGE__ );
     }
   }
   undef;
@@ -80,12 +76,13 @@ sub unregister {
 
   die "Not enough arguments" unless @events;
 
+  my $sender_id = $sender->ID();
   foreach (@events) {
-    delete $self->{events}->{$_}->{$sender};
-    if (--$self->{sessions}->{$sender}->{refcnt} <= 0) {
-      delete $self->{sessions}->{$sender};
+    delete $self->{events}->{$_}->{$sender_id};
+    if (--$self->{sessions}->{$sender_id}->{refcnt} <= 0) {
+      delete $self->{sessions}->{$sender_id};
       unless ($session == $sender) {
-        $kernel->refcount_decrement($sender->ID(), __PACKAGE__ );
+        $kernel->refcount_decrement($sender_id, __PACKAGE__ );
       }
     }
   }
@@ -105,19 +102,14 @@ sub _start {
 
 sub _stop {
   my ($kernel, $self, $quitmsg) = @_[KERNEL, OBJECT, ARG0];
-
-  if ($self->{connected}) {
-    $kernel->call( $_[SESSION], 'shutdown', $quitmsg );
-  }
+  $kernel->call( $_[SESSION], 'shutdown', $quitmsg ) if $self->{connected};
   undef;
 }
 
 sub connect {
   my ($kernel, $self, $session) = @_[KERNEL, OBJECT, SESSION];
 
-  if ($self->{'socket'}) {
-        $kernel->call ($session, 'squit');
-  }
+  $kernel->call ($session, 'quit') if $self->{socket};
 
   $self->{socketfactory} = POE::Wheel::SocketFactory->new(
                                         SocketDomain => AF_INET,
@@ -141,7 +133,7 @@ sub _sock_down {
   $self->{connected} = 0;
 
   foreach (keys %{$self->{sessions}}) {
-    $kernel->post( $self->{sessions}->{$_}->{'ref'},
+    $kernel->post( $_,
                    'nntp_disconnected', $self->{'remoteserver'} );
   }
   undef;
@@ -163,21 +155,18 @@ sub _sock_up {
         ErrorEvent => '_sock_down',
    );
 
-  if ($self->{'socket'}) {
-        $self->{connected} = 1;
-  } else {
+  unless ($self->{'socket'}) {
         $self->_send_event ( 'nntp_socketerr', "Couldn't create ReadWrite wheel for NNTP socket" );
+	return;
   }
 
-  foreach (keys %{$self->{sessions}}) {
-        $kernel->post( $self->{sessions}->{$_}->{'ref'}, 'nntp_connected', $self->{remoteserver} );
-  }
+  $self->{connected} = 1;
+  $kernel->post( $_, 'nntp_connected', $self->{remoteserver} ) for keys %{ $self->{sessions} };
   undef;
 }
 
 sub _sock_failed {
   my ($kernel, $self, $op, $errno, $errstr) = @_[KERNEL, OBJECT, ARG0..ARG2];
-
   $self->_send_event( 'nntp_socketerr', "$op error $errno: $errstr" );
   undef;
 }
@@ -188,14 +177,14 @@ sub _parseline {
   my ($kernel, $session, $self, $line) = @_[KERNEL, SESSION, OBJECT, ARG0];
 
   SWITCH: {
-    if ( $line =~ /^\.$/ and defined ( $self->{current_event} ) ) {
+    if ( $line =~ /^\.$/ and defined $self->{current_event} ) {
       $self->_send_event( 'nntp_' . shift( @{ $self->{current_event} } ), @{ $self->{current_event} }, $self->{current_text} );
-      delete ( $self->{current_event} );
-      delete ( $self->{current_text} );
+      delete $self->{current_event};
+      delete $self->{current_text};
       last SWITCH;
     }
-    if ( $line =~ /^([0-9]{3}) +(.+)$/ and not defined ( $self->{current_event} ) ) {
-      my ($current_event) = [ $1, $2 ];
+    if ( $line =~ /^([0-9]{3}) +(.+)$/ and !defined $self->{current_event} ) {
+      my $current_event = [ $1, $2 ];
       if ( $1 =~ /(220|221|222|100|215|231|230)/ ) {
         $self->{current_event} = $current_event;
         $self->{current_text} = [ ];
@@ -204,8 +193,8 @@ sub _parseline {
       }
       last SWITCH;
     }
-    if ( defined ( $self->{current_event} ) ) {
-      push ( @{ $self->{current_text} }, $line );
+    if ( defined $self->{current_event} ) {
+      push @{ $self->{current_text} }, $line;
       last SWITCH;
     }
   }
@@ -224,50 +213,37 @@ sub _send_event  {
            values %{$self->{events}->{$event}}) {
     $sessions{$_} = $_;
   }
-  foreach (values %sessions) {
-    $poe_kernel->post( $_, $event, @args );
-  }
+  $poe_kernel->post( $_, $event, @args ) for values %sessions;
 }
 
 sub shutdown {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-
-  foreach ($kernel->alias_list( $_[SESSION] )) {
-    $kernel->alias_remove( $_ );
-  }
-
-  foreach (qw(socket sock socketfactory dcc wheelmap)) {
-    delete $self->{$_};
-  }
+  $kernel->alarm_remove_all();
+  $kernel->alias_remove($_) for $kernel->alias_list();
+  delete $self->{$_} for qw(socket sock socketfactory dcc wheelmap);
+  warn "Shutdown called and there are still registered sessions\n" if scalar keys %{ $self->{sessions} };
   undef;
 }
 
 sub send_cmd {
   my ($kernel,$self) = @_[KERNEL,OBJECT];
   my $arg = join ' ', @_[ARG0 .. $#_];
-
-  $self->{socket}->put($arg) if ( defined ( $self->{socket} ) );
+  $self->{socket}->put($arg) if defined $self->{socket};
   undef;
 }
 
 sub accept_input {
   my ($kernel,$self,$state) = @_[KERNEL,OBJECT,STATE];
   my $arg = join ' ', @_[ARG0 .. $#_];
-
-  $self->{socket}->put("$state $arg") if ( defined ( $self->{socket} ) );
+  $self->{socket}->put("$state $arg") if defined $self->{socket};
   undef;
 }
 
 sub send_post {
   my ($kernel,$self) = @_[KERNEL,OBJECT];
-
-  unless ( ref $_[ARG0] eq 'ARRAY' ) {
-	croak "Argument to send_post must be an array ref";
-  }
-
-  foreach ( @{ $_[ARG0] } ) {
-    $kernel->yield( 'send_cmd' => $_ );
-  }
+  croak "Argument to send_post must be an array ref" unless ref $_[ARG0] eq 'ARRAY';
+  $kernel->yield( 'send_cmd' => $_ ) for @{ $_[ARG0] };
+  undef;
 }
 
 1;
@@ -616,7 +592,7 @@ The group event sets the current working group on the server end. If you want to
 
 Chris Williams, E<lt>chris@bingosnet.co.uk<gt>
 
-With code derived from L<POE::Component::IRC|POE::Component::IRC> by Dennis Taylor.
+With code derived from L<POE::Component::IRC> by Dennis Taylor.
 
 =head1 SEE ALSO
 

@@ -10,6 +10,7 @@ WriteMakefile(
 							  'POE'    => 0.31,
 							  'Carp'   => 0,
 							  'Socket' => 0,
+							  'warnings' => 0,
 							 },
 			  'VERSION_FROM' => 'NNTP.pm', # finds $VERSION
 			  'dist' => { 'COMPRESS' => 'gzip --best' },
