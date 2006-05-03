@@ -18,7 +18,7 @@ use Socket;
 use Sys::Hostname;
 use vars qw($VERSION);
 
-$VERSION = '1.00';
+$VERSION = '1.01';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
@@ -87,6 +87,17 @@ sub unregister {
     }
   }
   undef;
+}
+
+sub _unregister_sessions {
+  my $self = shift;
+  foreach my $session_id ( keys %{ $self->{sessions} } ) {
+     if (--$self->{sessions}->{$session_id}->{refcnt} <= 0) {
+        delete $self->{sessions}->{$session_id};
+	$poe_kernel->refcount_decrement($session_id, __PACKAGE__) 
+		unless ( $session_id eq $self->{session_id} );
+     }
+  }
 }
 
 # Session starts or stops
@@ -218,10 +229,10 @@ sub _send_event  {
 
 sub shutdown {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
+  $self->_unregister_sessions();
   $kernel->alarm_remove_all();
   $kernel->alias_remove($_) for $kernel->alias_list();
   delete $self->{$_} for qw(socket sock socketfactory dcc wheelmap);
-  warn "Shutdown called and there are still registered sessions\n" if scalar keys %{ $self->{sessions} };
   undef;
 }
 

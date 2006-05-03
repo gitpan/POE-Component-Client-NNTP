@@ -1,35 +1,8 @@
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl 1.t'
-
-#########################
-
-# change 'tests => 1' to 'tests => last_test_to_print';
-
-#use Test::More tests => 5;
-#BEGIN { use_ok('POE::Component::Client::NNTP') };
-
-#########################
-
-# Insert your test code below, the Test::More module is use()ed here so read
-# its man page ( perldoc Test::More ) for help writing this test script.
+use Test::More tests => 6;
+BEGIN { use_ok('POE::Component::Client::NNTP') };
 
 use Socket;
 use POE qw(Wheel::SocketFactory Wheel::ReadWrite);
-use POE::Component::Client::NNTP;
-
-# Start the component
-# Start our session
-# Register with component
-# Start a listener and get the port it is bound to
-# Ask the component to connect to the 'NNTP Server'
-# Quit
-# Shutdown component
-
-$|=1;
-print "1..5\n";
-print "ok 1\n";
-
-my (@tests) = ( "not ok 2", "not ok 3", "not ok 4", "not ok 5" );
 
 POE::Session->create
   ( inline_states =>
@@ -63,21 +36,20 @@ sub server_start {
 
     ($our_port, undef) = unpack_sockaddr_in( $_[HEAP]->{server}->getsockname );
 
-    POE::Component::Client::NNTP->spawn ( 'NNTP-Client' => { NNTPServer => 'localhost', Port => $our_port } );
+    my $nntp = POE::Component::Client::NNTP->spawn ( 'NNTP-Client' => { NNTPServer => 'localhost', Port => $our_port } );
+
+    isa_ok( $nntp, 'POE::Component::Client::NNTP' );
 
     $_[KERNEL]->post ( 'NNTP-Client' => 'register' => 'all' );
 
     $_[KERNEL]->post ( 'NNTP-Client' => 'connect' );
 
     $_[KERNEL]->delay ( 'close_all' => 60 );
+    undef;
 }
 
 sub server_stop {
-
-  foreach ( @tests ) {
-	print "$_\n";
-  }
-
+   undef;
 }
 
 sub server_accepted {
@@ -93,6 +65,7 @@ sub server_accepted {
     $_[HEAP]->{client}->{ $wheel->ID() } = $wheel;
 
     $wheel->put("200 server ready - posting allowed");
+    undef;
 }
 
 sub server_error {
@@ -100,12 +73,10 @@ sub server_error {
 }
 
 sub server_shutdown {
-
     $_[KERNEL]->delay ( 'close_all' => undef );
     delete $_[HEAP]->{server};
-    
-    $_[KERNEL]->post ( 'NNTP-Client' => 'unregister' => 'all' );
     $_[KERNEL]->post ( 'NNTP-Client' => 'shutdown' );
+    undef;
 }
 
 sub client_input {
@@ -117,21 +88,23 @@ sub client_input {
 	$heap->{client}->{$wheel_id}->put("215 list of newsgroups follows");
 	$heap->{client}->{$wheel_id}->put("perl.poe 0 1 y");
 	$heap->{client}->{$wheel_id}->put(".");
-	$tests[0] = "ok 2";
+	pass("LIST cmd");
 	last SWITCH;
       }
       if ( $input =~ /^QUIT/i ) {
 	$heap->{client}->{$wheel_id}->put("205 closing connection - goodbye!");
 	$heap->{quiting}->{$wheel_id} = 1;
-	$tests[2] = "ok 4";
+	pass("QUIT cmd");
 	last SWITCH;
       }
     }
+    undef;
 }
 
 sub client_error {
     my ( $heap, $wheel_id ) = @_[ HEAP, ARG3 ];
     delete $heap->{client}->{$wheel_id};
+    undef;
 }
 
 sub client_flushed {
@@ -141,18 +114,19 @@ sub client_flushed {
 	delete $heap->{quiting}->{$wheel_id};
     	delete $heap->{client}->{$wheel_id};
     }
+    undef;
 }
 
 sub nntp_200 {
   my ($kernel,$heap) = @_[KERNEL,HEAP];
-
   $kernel->post ( 'NNTP-Client' => 'list' );
-  $tests[1] = "ok 3";
+  pass("Connected");
+  undef;
 }
 
 sub nntp_215 {
   my ($kernel,$heap) = @_[KERNEL,HEAP];
-
   $kernel->post ( 'NNTP-Client' => 'quit' );
-  $tests[3] = "ok 5";
+  pass("Got a list back");
+  undef;
 }
