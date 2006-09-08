@@ -18,13 +18,13 @@ use Socket;
 use Sys::Hostname;
 use vars qw($VERSION);
 
-$VERSION = '1.01';
+$VERSION = '1.02';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
   my $package_events = {};
 
-  $package_events->{$_} = 'accept_input' for qw(article body head stat group help ihave last list newgroups newnews next post quit slave authinfo);
+  $package_events->{$_} = '_accept_input' for qw(article body head stat group help ihave last list newgroups newnews next post quit slave authinfo);
 
   croak "Not enough parameters to $package::spawn()" unless $alias;
   croak "Second argument to $package::spawn() must be a hash reference" unless ref $hash eq 'HASH';
@@ -243,7 +243,7 @@ sub send_cmd {
   undef;
 }
 
-sub accept_input {
+sub _accept_input {
   my ($kernel,$self,$state) = @_[KERNEL,OBJECT,STATE];
   my $arg = join ' ', @_[ARG0 .. $#_];
   $self->{socket}->put("$state $arg") if defined $self->{socket};
@@ -267,6 +267,7 @@ POE::Component::Client::NNTP - A component that provides access to NNTP.
 =head1 SYNOPSIS
 
    # Connects to NNTP Server, selects a group, then downloads all current articles.
+   use strict;
    use POE;
    use POE::Component::Client::NNTP;
    use Mail::Internet;
