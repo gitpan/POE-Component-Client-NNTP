@@ -18,7 +18,7 @@ use Socket;
 use Sys::Hostname;
 use vars qw($VERSION);
 
-$VERSION = '1.02';
+$VERSION = '1.03';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
@@ -41,7 +41,7 @@ sub spawn {
 
   $self->{session_id} = POE::Session->create(
 			object_states => [
-                          $self => [ qw(_start _stop _sock_up _sock_down _sock_failed _parseline register unregister shutdown send_cmd connect send_post) ],
+                          $self => [ qw(_start _stop _sock_up _sock_down _sock_failed _parseline register unregister shutdown send_cmd connect disconnect send_post) ],
 			  $self => $package_events,
 			],
 			heap => $self,
@@ -132,6 +132,12 @@ sub connect {
                                         FailureEvent => '_sock_failed',
                                         ( $self->{localaddr} ? (BindAddress => $self->{localaddr}) : () ),
   );
+  undef;
+}
+
+sub disconnect {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  delete $self->{'socket'};
   undef;
 }
 
@@ -414,6 +420,10 @@ Please ensure that you always 'unregister' with the component before asking it t
 
 Takes no arguments. Tells the NNTP component to start up a connection to the previously specified NNTP server. You will 
 receive a 'nntp_connected' event.
+
+=item disconnect
+
+Takes no arguments. Terminates the socket connection ungracelessly.
 
 =item shutdown
 
