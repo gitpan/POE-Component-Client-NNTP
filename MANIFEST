@@ -1,10 +1,15 @@
-README
 Changes
-lib/POE/Component/Client/NNTP.pm
 examples/synopsis.pl
-MANIFEST
+inc/Module/Install.pm
+inc/Module/Install/Base.pm
+inc/Module/Install/Makefile.pm
+inc/Module/Install/MakeMaker.pm
+inc/Module/Install/Metadata.pm
+lib/POE/Component/Client/NNTP.pm
 Makefile.PL
+MANIFEST
+META.yml			Module meta-data (added by MakeMaker)
+README
 t/1.t
 t/2.t
 t/3.t
-META.yml                                 Module meta-data (added by MakeMaker)

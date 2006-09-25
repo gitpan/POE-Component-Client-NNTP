@@ -1,6 +1,12 @@
 POE::Component::Client::NNTP
 ============================
 
+1.04	Mon Sep 25 16:35:06 BST 2006
+	- Switched to Module::Install
+
+1.03	Mon Sep 11 13:13:13 BST 2006
+	- Added disconnect() event
+
 1.02	Fri Sep 08 17:10:34 BST 2006
 	- Added POD tests
 	- Added examples/synopsis.pl

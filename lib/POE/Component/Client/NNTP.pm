@@ -18,7 +18,7 @@ use Socket;
 use Sys::Hostname;
 use vars qw($VERSION);
 
-$VERSION = '1.03';
+$VERSION = '1.04';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
