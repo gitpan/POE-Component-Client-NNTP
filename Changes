@@ -1,6 +1,9 @@
 POE::Component::Client::NNTP
 ============================
 
+1.05	Tue Nov 28 20:10:10 GMT 2006
+	- Fixed send_post command.
+
 1.04	Mon Sep 25 16:35:06 BST 2006
 	- Switched to Module::Install
 

@@ -18,7 +18,7 @@ use Socket;
 use Sys::Hostname;
 use vars qw($VERSION);
 
-$VERSION = '1.04';
+$VERSION = '1.05';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
@@ -259,7 +259,9 @@ sub _accept_input {
 sub send_post {
   my ($kernel,$self) = @_[KERNEL,OBJECT];
   croak "Argument to send_post must be an array ref" unless ref $_[ARG0] eq 'ARRAY';
-  $kernel->yield( 'send_cmd' => $_ ) for @{ $_[ARG0] };
+  return unless defined $self->{socket};
+  $self->{socket}->put($_) for @{ $_[ARG0] };
+  $self->{socket}->put('.');
   undef;
 }
 
