@@ -1,6 +1,11 @@
 POE::Component::Client::NNTP
 ============================
 
+2.00	Wed Nov 29 14:56:34 GMT 2006
+	- Used PoCo-Pluggable to enable plugin support.
+	- Massive documentation changes.
+	- Extended testsuite.
+
 1.05	Tue Nov 28 20:10:10 GMT 2006
 	- Fixed send_post command.
 

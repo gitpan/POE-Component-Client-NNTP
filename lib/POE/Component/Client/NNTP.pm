@@ -15,10 +15,11 @@ use POE qw( Wheel::SocketFactory Wheel::ReadWrite Driver::SysRW
             Filter::Line Filter::Stream );
 use Carp;
 use Socket;
-use Sys::Hostname;
+use base qw(POE::Component::Pluggable);
+use POE::Component::Pluggable::Constants qw(:ALL);
 use vars qw($VERSION);
 
-$VERSION = '1.05';
+$VERSION = '2.00';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
@@ -35,13 +36,14 @@ sub spawn {
   
   my $self = bless { }, $package;
   
+  $self->_pluggable_init( prefix => 'nntp_', types => [ 'NNTPSERVER', 'NNTPCMD' ] );
   $self->{remoteserver} = $hash->{'NNTPServer'};
   $self->{serverport} = $hash->{'Port'};
   $self->{localaddr} = $hash->{'LocalAddr'};
 
   $self->{session_id} = POE::Session->create(
 			object_states => [
-                          $self => [ qw(_start _stop _sock_up _sock_down _sock_failed _parseline register unregister shutdown send_cmd connect disconnect send_post) ],
+                          $self => [ qw(_start _stop _sock_up _sock_down _sock_failed _parseline register unregister shutdown send_cmd connect disconnect send_post __send_event) ],
 			  $self => $package_events,
 			],
 			heap => $self,
@@ -51,6 +53,14 @@ sub spawn {
 }
 
 # Register and unregister to receive events
+
+sub session_id {
+  return $_[0]->{session_id};
+}
+
+sub connected {
+  return $_[0]->{connected};
+}
 
 sub register {
   my ($kernel, $self, $session, $sender, @events) =
@@ -67,6 +77,7 @@ sub register {
       $kernel->refcount_increment($sender_id, __PACKAGE__ );
     }
   }
+  $kernel->post( $sender, 'nntp_registered', $self );
   undef;
 }
 
@@ -92,22 +103,31 @@ sub unregister {
 sub _unregister_sessions {
   my $self = shift;
   foreach my $session_id ( keys %{ $self->{sessions} } ) {
-     if (--$self->{sessions}->{$session_id}->{refcnt} <= 0) {
-        delete $self->{sessions}->{$session_id};
-	$poe_kernel->refcount_decrement($session_id, __PACKAGE__) 
-		unless ( $session_id eq $self->{session_id} );
+     my $refcnt = $self->{sessions}->{$session_id}->{refcnt};
+     while ( $refcnt --> 0 ) {
+	$poe_kernel->refcount_decrement($session_id, __PACKAGE__);
      }
+     delete $self->{sessions}->{$session_id};
   }
 }
 
 # Session starts or stops
 
 sub _start {
-  my ($kernel, $session, $self, $alias) = @_[KERNEL, SESSION, OBJECT, ARG0];
+  my ($kernel,$session,$sender,$self,$alias) = @_[KERNEL,SESSION,SENDER,OBJECT,ARG0];
   my @options = @_[ARG1 .. $#_];
   $self->{session_id} = $session->ID();
   $session->option( @options ) if @options;
   $kernel->alias_set($alias);
+  if ($kernel != $sender ) {
+    my $sender_id = $sender->ID;
+    $self->{events}->{'nntp_all'}->{$sender_id} = $sender_id;
+    $self->{sessions}->{$sender_id}->{'ref'} = $sender_id;
+    $self->{sessions}->{$sender_id}->{refcnt}++;
+    $kernel->refcount_increment($sender_id, __PACKAGE__);
+    $kernel->post( $sender, 'nntp_registered', $self );
+  }
+  $self->{connected} = 0;
   undef;
 }
 
@@ -218,12 +238,29 @@ sub _parseline {
   undef;
 }
 
+sub _pluggable_event {
+  my $self = shift;
+  $poe_kernel->call( $self->{session_id}, '__send_event', @_ );
+  return 1;
+}
+
+sub __send_event {
+  my ($kernel,$self,$event,@args) = @_[KERNEL,OBJECT,ARG0,ARG1..$#_];
+  $self->_send_event( $event, @args );
+  return;
+}
+
 # Sends an event to all interested sessions. This is a separate sub
 # because I do it so much, but it's not an actual POE event because it
 # doesn't need to be one and I don't need the overhead.
 
 sub _send_event  {
   my ($self, $event, @args) = @_;
+
+  my @extra_args;
+  return 1 if $self->_pluggable_process( 'NNTPSERVER', $event, \( @args ), \@extra_args ) == PLUGIN_EAT_ALL;
+  push @args, @extra_args if scalar @extra_args;
+
   my %sessions;
 
   foreach (values %{$self->{events}->{'nntp_all'}},
@@ -239,12 +276,14 @@ sub shutdown {
   $kernel->alarm_remove_all();
   $kernel->alias_remove($_) for $kernel->alias_list();
   delete $self->{$_} for qw(socket sock socketfactory dcc wheelmap);
+  $self->_pluggable_destroy();
   undef;
 }
 
 sub send_cmd {
   my ($kernel,$self) = @_[KERNEL,OBJECT];
   my $arg = join ' ', @_[ARG0 .. $#_];
+  return 1 if $self->_pluggable_process( 'NNTPCMD', 'send_cmd', \$arg ) == PLUGIN_EAT_ALL;
   $self->{socket}->put($arg) if defined $self->{socket};
   undef;
 }
@@ -252,6 +291,7 @@ sub send_cmd {
 sub _accept_input {
   my ($kernel,$self,$state) = @_[KERNEL,OBJECT,STATE];
   my $arg = join ' ', @_[ARG0 .. $#_];
+  return 1 if $self->_pluggable_process( 'NNTPCMD', $state, \$arg ) == PLUGIN_EAT_ALL;
   $self->{socket}->put("$state $arg") if defined $self->{socket};
   undef;
 }
@@ -283,7 +323,7 @@ POE::Component::Client::NNTP - A component that provides access to NNTP.
 
    $|=1;
 
-   POE::Component::Client::NNTP->spawn ( 'NNTP-Client', { NNTPServer => 'news.host' } );
+   my $nntp = POE::Component::Client::NNTP->spawn ( 'NNTP-Client', { NNTPServer => 'news.host' } );
 
    POE::Session->create(
 	package_states => [
@@ -293,7 +333,7 @@ POE::Component::Client::NNTP - A component that provides access to NNTP.
 			    nntp_200	      => '_connected',
 			    nntp_201	      => '_connected',
 		},
-		'main' => [ qw(_start nntp_211 nntp_220 nntp_223)
+		'main' => [ qw(_start nntp_211 nntp_220 nntp_223 nntp_registered)
 		],
 	],
    );
@@ -308,6 +348,11 @@ POE::Component::Client::NNTP - A component that provides access to NNTP.
 	$kernel->post ( 'NNTP-Client' => register => 'all' );
 	# Okay, ask it to connect to the server
 	$kernel->post ( 'NNTP-Client' => 'connect' );
+	undef;
+   }
+
+   sub nntp_registered {
+	my $nntp_object = $_[ARG0];
 	undef;
    }
 
@@ -328,6 +373,7 @@ POE::Component::Client::NNTP - A component that provides access to NNTP.
 	# The NNTP server sets 'current article pointer' to first article in the group.
 	# Retrieve the first article
 	$kernel->post( 'NNTP-Client' => 'article' );
+	undef;
    }
 
    sub nntp_220 {
@@ -399,6 +445,20 @@ If 'NNTPServer' is not specified, the default is 'news', unless the environment 
 
 =back
 
+=head1 METHODS
+
+=over
+
+=item session_id
+
+Returns the session ID of the component's POE::Session.
+
+=item connected
+
+Indicates true or false as to whether the component is currently connected to a server or not.
+
+=back
+
 =head1 INPUT
 
 The component accepts the following events:
@@ -408,7 +468,7 @@ The component accepts the following events:
 =item register
 
 Takes N arguments: a list of event names that your session wants to listen for, minus the 'nntp_' prefix, ( this is 
-similar to L<POE::Component::IRC|POE::Component::IRC> ). 
+similar to L<POE::Component::IRC> ). 
 
 Registering for 'all' will cause it to send all NNTP-related events to you; this is the easiest way to handle it.
 
@@ -521,6 +581,11 @@ The following events are generated by the component:
 
 =over
 
+=item nntp_registered
+
+Generated when you either explicitly 'register' with the component or you spawn a NNTP poco
+from within your own session. ARG0 is the poco's object.
+
 =item nntp_connected
 
 Generated when the component successfully makes a connection to the NNTP server. Please note, that this is only the
@@ -602,11 +667,209 @@ Possible nntp_ values are:
 
 =back
 
-=head1 TODO
+=head1 PLUGINS
 
-Abstract the NNTP protocol parsing into a L<POE::Filter>.
+POE::Component::Client::NNTP now utilises L<POE::Component::Pluggable> to enable a
+L<POE::Component::IRC> type plugin system. 
 
-Implement a plugin system.
+=head2 PLUGIN HANDLER TYPES
+
+There are two types of handlers that can registered for by plugins, these are 
+
+=over
+
+=item NNTPSERVER
+
+These are the 'nntp_' prefixed events that are generated. In a handler arguments are
+passed as scalar refs so that you may mangle the values if required.
+
+=item NNTPCMD
+
+These are generated whenever an nntp command is sent to the component. Again, any 
+arguments passed are scalar refs for manglement.
+
+=back
+
+=head2 PLUGIN EXIT CODES
+
+Plugin handlers should return a particular value depending on what action they wish
+to happen to the event. These values are available as constants which you can use 
+with the following line:
+
+  use POE::Component::Client::NNTP::Constants qw(:ALL);
+
+The return values have the following significance:
+
+=over 
+
+=item NNTP_EAT_NONE
+
+This means the event will continue to be processed by remaining plugins and
+finally, sent to interested sessions that registered for it.
+
+=item NNTP_EAT_CLIENT
+
+This means the event will continue to be processed by remaining plugins but
+it will not be sent to any sessions that registered for it. This means nothing
+will be sent out on the wire if it was an NNTPCMD event, beware!
+
+=item NNTP_EAT_PLUGIN
+
+This means the event will not be processed by remaining plugins, it will go
+straight to interested sessions.
+
+=item NNTP_EAT_ALL
+
+This means the event will be completely discarded, no plugin or session will see it. This
+means nothing will be sent out on the wire if it was an NNTPCMD event, beware!
+
+=back
+
+=head2 PLUGIN METHODS
+
+The following methods are available:
+
+=over
+
+=item pipeline
+
+Returns the L<POE::Component::Pluggable::Pipeline> object.
+
+=item plugin_add
+
+Accepts two arguments:
+
+  The alias for the plugin
+  The actual plugin object
+
+The alias is there for the user to refer to it, as it is possible to have multiple
+plugins of the same kind active in one POE::Component::Client::NNTP object.
+
+This method goes through the pipeline's push() method.
+
+ This method will call $plugin->plugin_register( $nntp )
+
+Returns the number of plugins now in the pipeline if plugin was initialized, undef
+if not.
+
+=item plugin_del
+
+Accepts one argument:
+
+  The alias for the plugin or the plugin object itself
+
+This method goes through the pipeline's remove() method.
+
+This method will call $plugin->plugin_unregister( $irc )
+
+Returns the plugin object if the plugin was removed, undef if not.
+
+=item plugin_get
+
+Accepts one argument:
+
+  The alias for the plugin
+
+This method goes through the pipeline's get() method.
+
+Returns the plugin object if it was found, undef if not.
+
+=item plugin_list
+
+Has no arguments.
+
+Returns a hashref of plugin objects, keyed on alias, or an empty list if there are no
+plugins loaded.
+
+=item plugin_order
+
+Has no arguments.
+
+Returns an arrayref of plugin objects, in the order which they are encountered in the
+pipeline.
+
+=item plugin_register
+
+Accepts the following arguments:
+
+  The plugin object
+  The type of the hook, NNTPSERVER or NNTPCMD
+  The event name(s) to watch
+
+The event names can be as many as possible, or an arrayref. They correspond
+to the prefixed events and naturally, arbitrary events too.
+
+You do not need to supply events with the prefix in front of them, just the names.
+
+It is possible to register for all events by specifying 'all' as an event.
+
+Returns 1 if everything checked out fine, undef if something's seriously wrong
+
+=item plugin_unregister
+
+Accepts the following arguments:
+
+  The plugin object
+  The type of the hook, NNTPSERVER or NNTPCMD
+  The event name(s) to unwatch
+
+The event names can be as many as possible, or an arrayref. They correspond
+to the prefixed events and naturally, arbitrary events too.
+
+You do not need to supply events with the prefix in front of them, just the names.
+
+It is possible to register for all events by specifying 'all' as an event.
+
+Returns 1 if all the event name(s) was unregistered, undef if some was not found.
+
+=back
+
+=head2 PLUGIN TEMPLATE
+
+The basic anatomy of a plugin is:
+
+        package Plugin;
+
+        # Import the constants, of course you could provide your own 
+        # constants as long as they map correctly.
+        use POE::Component::NNTP::Constants qw( :ALL );
+
+        # Our constructor
+        sub new {
+                ...
+        }
+
+        # Required entry point for plugins
+        sub plugin_register {
+                my( $self, $nntp ) = @_;
+
+                # Register events we are interested in
+                $nntp->plugin_register( $self, 'NNTPSERVER', qw(all) );
+
+                # Return success
+                return 1;
+        }
+
+        # Required exit point for pluggable
+        sub plugin_unregister {
+                my( $self, $nntp ) = @_;
+
+                # Pluggable will automatically unregister events for the plugin
+
+                # Do some cleanup...
+
+                # Return success
+                return 1;
+        }
+
+        sub _default {
+                my( $self, $nntp, $event ) = splice @_, 0, 3;
+
+                print "Default called for $event\n";
+
+                # Return an exit code
+                return NNTP_EAT_NONE;
+        }
 
 =head1 CAVEATS
 
@@ -623,5 +886,7 @@ With code derived from L<POE::Component::IRC> by Dennis Taylor.
 RFC 977  L<http://www.faqs.org/rfcs/rfc977.html>
 
 RFC 2980 L<http://www.faqs.org/rfcs/rfc2980.html>
+
+L<POE::Component::Pluggable>
 
 =cut

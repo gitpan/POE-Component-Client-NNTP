@@ -1,8 +1,56 @@
-use Test::More tests => 6;
-BEGIN { use_ok('POE::Component::Client::NNTP') };
+use Test::More tests => 18;
+
+{
+  package TestPlugin;
+  use Test::More;
+  use POE::Component::Client::NNTP::Constants qw(:ALL);
+
+  sub new {
+    return bless { }, shift;
+  }
+
+  sub plugin_register {
+    my ($self,$nntp) = @_;
+    ok( $nntp->plugin_register( $self, 'NNTPSERVER', qw(all) ), 'plugin_register' );
+    ok( $nntp->plugin_register( $self, 'NNTPCMD', qw(all) ), 'plugin_register' );
+    return 1;
+  }
+
+  sub plugin_unregister {
+    pass('plugin_unregister');
+    return 1;
+  }
+
+  sub NNTPSERVER_200 {
+    pass('NNTPSERVER_200');
+    return NNTP_EAT_NONE;
+  }
+
+  sub NNTPSERVER_215 {
+    pass('NNTPSERVER_215');
+    return NNTP_EAT_NONE;
+  }
+
+  sub NNTPSERVER_205 {
+    pass('NNTPSERVER_205');
+    return NNTP_EAT_NONE;
+  }
+
+  sub NNTPCMD_quit {
+    pass('NNTPCMD_quit');
+    return NNTP_EAT_NONE;
+  }
+  sub NNTPCMD_list {
+    pass('NNTPCMD_list');
+    return NNTP_EAT_NONE;
+  }
+
+}
 
 use Socket;
 use POE qw(Wheel::SocketFactory Wheel::ReadWrite);
+
+require_ok('POE::Component::Client::NNTP');
 
 POE::Session->create
   ( inline_states =>
@@ -16,9 +64,13 @@ POE::Session->create
 	close_all	=> \&server_shutdown,
 	nntp_200	=> \&nntp_200,
 	nntp_215	=> \&nntp_215,
+	nntp_registered => \&nntp_registered,
+	nntp_plugin_add => \&nntp_plugin_add,
+	nntp_plugin_del => \&nntp_plugin_del,
 	#nntp_205	=> \&server_shutdown,
 	nntp_disconnected	=> \&server_shutdown,
       },
+      options => { trace => 0 },
   );
 
 POE::Kernel->run();
@@ -36,16 +88,34 @@ sub server_start {
 
     ($our_port, undef) = unpack_sockaddr_in( $_[HEAP]->{server}->getsockname );
 
-    my $nntp = POE::Component::Client::NNTP->spawn ( 'NNTP-Client' => { NNTPServer => 'localhost', Port => $our_port } );
+    my $nntp = POE::Component::Client::NNTP->spawn ( 'NNTP-Client' => { NNTPServer => 'localhost', Port => $our_port }, trace => 0 );
 
     isa_ok( $nntp, 'POE::Component::Client::NNTP' );
 
-    $_[KERNEL]->post ( 'NNTP-Client' => 'register' => 'all' );
-
-    $_[KERNEL]->post ( 'NNTP-Client' => 'connect' );
+    $_[KERNEL]->post( 'NNTP-Client', 'register', 'all' );
+    $_[KERNEL]->post( 'NNTP-Client', 'connect' );
 
     $_[KERNEL]->delay ( 'close_all' => 60 );
     undef;
+}
+
+sub nntp_registered {
+  my ($kernel,$sender,$nntp) = @_[KERNEL,SENDER,ARG0];
+  isa_ok( $nntp, 'POE::Component::Client::NNTP' );
+  $nntp->plugin_add( 'TestPlugin', TestPlugin->new() );
+  undef;
+}
+
+sub nntp_plugin_add {
+  my ($kernel,$sender,$plugin) = @_[KERNEL,SENDER,ARG1];
+  isa_ok( $plugin, 'TestPlugin' );
+  return;
+}
+
+sub nntp_plugin_del {
+  my ($kernel,$sender,$plugin) = @_[KERNEL,SENDER,ARG1];
+  isa_ok( $plugin, 'TestPlugin' );
+  return;
 }
 
 sub server_stop {
