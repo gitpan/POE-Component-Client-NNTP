@@ -7,5 +7,5 @@ requires 'warnings' => 0;
 requires 'Socket' => 0;
 requires 'Carp' => 0;
 requires 'POE' => 0.38;
-requires 'POE::Component::Pluggable' => 0;
+requires 'POE::Component::Pluggable' => 0.03;
 WriteAll();

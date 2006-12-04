@@ -1,6 +1,9 @@
 POE::Component::Client::NNTP
 ============================
 
+2.01	Mod Dec 04 19:04:08 GMT 2006
+	- Changes to PoCo-Component-Pluggable have forced a prereq change.
+
 2.00	Wed Nov 29 14:56:34 GMT 2006
 	- Used PoCo-Pluggable to enable plugin support.
 	- Massive documentation changes.

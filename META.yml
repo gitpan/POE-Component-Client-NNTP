@@ -10,7 +10,7 @@ no_index:
 requires: 
   Carp: 0
   POE: 0.38
-  POE::Component::Pluggable: 0
+  POE::Component::Pluggable: 0.03
   Socket: 0
   warnings: 0
-version: 2.00
+version: 2.01
