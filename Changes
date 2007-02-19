@@ -1,6 +1,9 @@
 POE::Component::Client::NNTP
 ============================
 
+2.02	Mon Feb 19 10:31:56 GMT 2007
+	- Added kwalitee test.
+
 2.01	Mod Dec 04 19:04:08 GMT 2006
 	- Changes to PoCo-Component-Pluggable have forced a prereq change.
 

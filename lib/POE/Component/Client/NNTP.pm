@@ -19,7 +19,7 @@ use base qw(POE::Component::Pluggable);
 use POE::Component::Pluggable::Constants qw(:ALL);
 use vars qw($VERSION);
 
-$VERSION = '2.01';
+$VERSION = '2.02';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
@@ -143,14 +143,14 @@ sub connect {
   $kernel->call ($session, 'quit') if $self->{socket};
 
   $self->{socketfactory} = POE::Wheel::SocketFactory->new(
-                                        SocketDomain => AF_INET,
-                                        SocketType => SOCK_STREAM,
-                                        SocketProtocol => 'tcp',
-                                        RemoteAddress => $self->{'remoteserver'},
-                                        RemotePort => $self->{'serverport'},
-                                        SuccessEvent => '_sock_up',
-                                        FailureEvent => '_sock_failed',
-                                        ( $self->{localaddr} ? (BindAddress => $self->{localaddr}) : () ),
+       SocketDomain => AF_INET,
+       SocketType => SOCK_STREAM,
+       SocketProtocol => 'tcp',
+       RemoteAddress => $self->{'remoteserver'},
+       RemotePort => $self->{'serverport'},
+       SuccessEvent => '_sock_up',
+       FailureEvent => '_sock_failed',
+       ( $self->{localaddr} ? (BindAddress => $self->{localaddr}) : () ),
   );
   undef;
 }
@@ -169,10 +169,8 @@ sub _sock_down {
   delete $self->{'socket'};
   $self->{connected} = 0;
 
-  foreach (keys %{$self->{sessions}}) {
-    $kernel->post( $_,
-                   'nntp_disconnected', $self->{'remoteserver'} );
-  }
+  $kernel->post( $_, 'nntp_disconnected', $self->{'remoteserver'} ) 
+	for keys %{ $self->{sessions} };
   undef;
 }
 
@@ -193,7 +191,7 @@ sub _sock_up {
    );
 
   unless ($self->{'socket'}) {
-        $self->_send_event ( 'nntp_socketerr', "Couldn't create ReadWrite wheel for NNTP socket" );
+  $self->_send_event ( 'nntp_socketerr', "Couldn't create ReadWrite wheel for NNTP socket" );
 	return;
   }
 
@@ -225,7 +223,8 @@ sub _parseline {
       if ( $1 =~ /(220|221|222|100|215|231|230)/ ) {
         $self->{current_event} = $current_event;
         $self->{current_text} = [ ];
-      } else {
+      } 
+      else {
 	$self->_send_event( 'nntp_' . $1, $2 );
       }
       last SWITCH;
