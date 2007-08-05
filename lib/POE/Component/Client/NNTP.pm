@@ -19,7 +19,7 @@ use base qw(POE::Component::Pluggable);
 use POE::Component::Pluggable::Constants qw(:ALL);
 use vars qw($VERSION);
 
-$VERSION = '2.02';
+$VERSION = '2.03';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
@@ -309,7 +309,7 @@ __END__
 
 =head1 NAME
 
-POE::Component::Client::NNTP - A component that provides access to NNTP.
+POE::Component::Client::NNTP - A POE component that implements an RFC 977 NNTP client.
 
 =head1 SYNOPSIS
 

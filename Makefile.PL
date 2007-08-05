@@ -3,6 +3,8 @@ name 'POE-Component-Client-NNTP';
 author 'Chris Williams <chris@bingosnet.co.uk>';
 license 'perl';
 version_from 'lib/POE/Component/Client/NNTP.pm';
+abstract_from 'lib/POE/Component/Client/NNTP.pm';
+build_requires 'Test::More' => 0.47;
 requires 'warnings' => 0;
 requires 'Socket' => 0;
 requires 'Carp' => 0;
