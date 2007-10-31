@@ -19,7 +19,7 @@ use base qw(POE::Component::Pluggable);
 use POE::Component::Pluggable::Constants qw(:ALL);
 use vars qw($VERSION);
 
-$VERSION = '2.03';
+$VERSION = '2.04';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
