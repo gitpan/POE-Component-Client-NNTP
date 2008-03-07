@@ -1,3 +1,4 @@
+use 5.006;
 use inc::Module::Install;
 name 'POE-Component-Client-NNTP';
 author 'Chris Williams <chris@bingosnet.co.uk>';
@@ -8,6 +9,11 @@ build_requires 'Test::More' => 0.47;
 requires 'warnings' => 0;
 requires 'Socket' => 0;
 requires 'Carp' => 0;
-requires 'POE' => 0.38;
+requires 'Exporter' => 0;
+requires 'POE' => 0.9999;
+requires 'POE::Wheel::SocketFactory' => 0;
+requires 'POE::Wheel::ReadWrite' => 0;
+requires 'POE::Driver::SysRW' => 0;
 requires 'POE::Component::Pluggable' => 0.03;
+requires 'POE::Component::Pluggable::Constants' => 0;
 WriteAll();

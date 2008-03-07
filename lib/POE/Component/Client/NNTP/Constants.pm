@@ -1,6 +1,7 @@
 package POE::Component::Client::NNTP::Constants;
 
 use strict;
+use warnings;
 use vars qw($VERSION);
 
 $VERSION = '0.01';

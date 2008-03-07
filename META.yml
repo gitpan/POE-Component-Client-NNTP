@@ -17,8 +17,13 @@ no_index:
     - t
 requires: 
   Carp: 0
-  POE: 0.38
+  Exporter: 0
+  POE: 0.9999
   POE::Component::Pluggable: 0.03
+  POE::Component::Pluggable::Constants: 0
+  POE::Driver::SysRW: 0
+  POE::Wheel::ReadWrite: 0
+  POE::Wheel::SocketFactory: 0
   Socket: 0
   warnings: 0
-version: 2.04
+version: 2.06

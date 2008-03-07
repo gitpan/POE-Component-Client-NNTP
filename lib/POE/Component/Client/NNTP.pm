@@ -12,14 +12,14 @@ use 5.006;
 use strict;
 use warnings;
 use POE qw( Wheel::SocketFactory Wheel::ReadWrite Driver::SysRW
-            Filter::Line Filter::Stream );
+            Filter::Line  );
 use Carp;
 use Socket;
 use base qw(POE::Component::Pluggable);
 use POE::Component::Pluggable::Constants qw(:ALL);
 use vars qw($VERSION);
 
-$VERSION = '2.04';
+$VERSION = '2.06';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;

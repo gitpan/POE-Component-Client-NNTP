@@ -1,6 +1,9 @@
 POE::Component::Client::NNTP
 ============================
 
+2.06	Fri Mar  7 06:59:15 GMT 2008
+	- Kwalitee changes and fixes.
+
 2.04	Wed Oct 31 17:22:55 GMT 2007
 	- Updated Module::Install to 0.68
 
