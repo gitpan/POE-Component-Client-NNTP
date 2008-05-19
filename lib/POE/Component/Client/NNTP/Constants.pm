@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use vars qw($VERSION);
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 require Exporter;
 our @ISA = qw( Exporter );
@@ -57,6 +57,12 @@ Value: 4
 =head1 MAINTAINER
 
 Chris 'BinGOs' Williams <chris@bingosnet.co.uk>
+
+=head1 LICENSE
+
+Copyright C<(c)> Chris Williams.
+
+This module may be used, modified, and distributed under the same terms as Perl itself. Please see the license that came with your Perl distribution for details.
 
 =head1 SEE ALSO
 

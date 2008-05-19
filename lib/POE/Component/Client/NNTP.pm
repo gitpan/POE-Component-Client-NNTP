@@ -19,7 +19,7 @@ use base qw(POE::Component::Pluggable);
 use POE::Component::Pluggable::Constants qw(:ALL);
 use vars qw($VERSION);
 
-$VERSION = '2.06';
+$VERSION = '2.08';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
@@ -879,6 +879,12 @@ The group event sets the current working group on the server end. If you want to
 Chris Williams, E<lt>chris@bingosnet.co.uk<gt>
 
 With code derived from L<POE::Component::IRC> by Dennis Taylor.
+
+=head1 LICENSE
+
+Copyright C<(c)> Chris Williams and Dennis Taylor.
+
+This module may be used, modified, and distributed under the same terms as Perl itself. Please see the license that came with your Perl distribution for details.
 
 =head1 SEE ALSO
 

@@ -1,6 +1,11 @@
 POE::Component::Client::NNTP
 ============================
 
+2.08	Mon May 19 13:41:56 BST 2008
+	- Removed kwalitee test
+	- Added license information
+	- Changed test to use Test::POE::Server::TCP
+
 2.06	Fri Mar  7 06:59:15 GMT 2008
 	- Kwalitee changes and fixes.
 
