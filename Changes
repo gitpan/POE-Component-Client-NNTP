@@ -1,6 +1,9 @@
 POE::Component::Client::NNTP
 ============================
 
+2.10	Wed Sep 10 06:41:14 BST 2008
+	- RT #39147 by DAGOLDEN
+
 2.08	Mon May 19 13:41:56 BST 2008
 	- Removed kwalitee test
 	- Added license information

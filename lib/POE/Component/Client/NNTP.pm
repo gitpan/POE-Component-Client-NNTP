@@ -19,7 +19,7 @@ use base qw(POE::Component::Pluggable);
 use POE::Component::Pluggable::Constants qw(:ALL);
 use vars qw($VERSION);
 
-$VERSION = '2.08';
+$VERSION = '2.10';
 
 sub spawn {
   my ($package,$alias,$hash) = splice @_, 0, 3;
@@ -185,7 +185,7 @@ sub _sock_up {
   (
         Handle => $socket,
         Driver => POE::Driver::SysRW->new(),
-        Filter => POE::Filter::Line->new(),
+        Filter => POE::Filter::Line->new( InputLiteral => "\x0D\x0A" ),
         InputEvent => '_parseline',
         ErrorEvent => '_sock_down',
    );
