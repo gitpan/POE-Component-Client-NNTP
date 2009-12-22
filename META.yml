@@ -23,7 +23,7 @@ no_index:
 provides:
   POE::Component::Client::NNTP:
     file: lib/POE/Component/Client/NNTP.pm
-    version: 2.12
+    version: 2.14
   POE::Component::Client::NNTP::Constants:
     file: lib/POE/Component/Client/NNTP/Constants.pm
     version: 2.12
@@ -40,4 +40,4 @@ resources:
   homepage: http://github.com/bingos/poe-component-client-nntp/tree
   license: http://dev.perl.org/licenses/
   repository: git://github.com/bingos/poe-component-client-nntp.git
-version: 2.12
+version: 2.14
