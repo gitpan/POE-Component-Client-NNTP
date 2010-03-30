@@ -9,7 +9,7 @@ build_requires:
 configure_requires:
   ExtUtils::MakeMaker: 6.42
 distribution_type: module
-generated_by: 'Module::Install version 0.91'
+generated_by: 'Module::Install version 0.95'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -23,7 +23,7 @@ no_index:
 provides:
   POE::Component::Client::NNTP:
     file: lib/POE/Component/Client/NNTP.pm
-    version: 2.14
+    version: 2.16
   POE::Component::Client::NNTP::Constants:
     file: lib/POE/Component/Client/NNTP/Constants.pm
     version: 2.12
@@ -40,4 +40,4 @@ resources:
   homepage: http://github.com/bingos/poe-component-client-nntp/tree
   license: http://dev.perl.org/licenses/
   repository: git://github.com/bingos/poe-component-client-nntp.git
-version: 2.14
+version: 2.16
