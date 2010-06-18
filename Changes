@@ -1,59 +1,72 @@
-POE::Component::Client::NNTP
-============================
+==============================
+2010-06-18 16:22:17 +0100 2.20
+==============================
 
-2.18  Tue Jun  8 12:33:23 BST 2010
-  - Removed SO_KEEPALIVE socket option
-  - Implemented TimeOut option to terminate connection
+  commit 6d637f90bf2c64a26946fcc512081bc7088291ac
+  Author: Chris 'BinGOs' Williams <chris@bingosnet.co.uk>
+  Date:   Fri Jun 18 16:22:17 2010 +0100
+  
+    Converted distribution to Dist::Zilla
+
+  commit e034a84fa2297502ebb109477b32ba1669bd6d27
+  Author: Chris 'BinGOs' Williams <chris@bingosnet.co.uk>
+  Date:   Fri Jun 18 16:10:10 2010 +0100
+  
+    Implemented RFC 3977 commands
+
+  commit 29b07d4c65108c93674121db8840df6480921a0e
+  Author: Chris 'BinGOs' Williams <chris@bingosnet.co.uk>
+  Date:   Fri Jun 18 12:44:01 2010 +0100
+  
+    Sync
+
+  commit 6c45836c2ce7da2f396c15074d118dacc6761a07
+  Author: Justin Hunter <justin.d.hunter@gmail.com>
+  Date:   Wed Jun 9 08:38:05 2010 +0800
+  
+    fixed line break issues, added AUTHINFO related statuses 
+
+==============================
+2010-06-08 12:36:52 +0100 2.18
+==============================
+
+  commit 5c5ca7d976b25cb60d23bcf936a850dbfed8227e
+  Author: Chris 'BinGOs' Williams <chris@bingosnet.co.uk>
+  Date:   Tue Jun 8 12:36:52 2010 +0100
+  
+    Various changes for 2.18:
+
+    = Removed SO_KEEPALIVE socket option
+
+    = Implemented TimeOut option to terminate connection
+
     if we don't get response from server
-  - Added most of the textual responses from RFC 2980,
-    requested by Khisanth
 
-2.16  Tue Mar 30 22:42:41 BST 2010
-  - Attempt to address RT #55899 reported by Ryan Chan by
-    setting the SO_KEEPALIVE socket option
+    = Added most of the textual responses from RFC 2980,
 
-2.14  Tue Dec 22 14:32:49 GMT 2009
-  - RT #52615 Add SSL support, requested by
-    Arcanez (Justin Hunter)
+    requested by Khisanth 
 
-2.10	Wed Sep 10 06:41:14 BST 2008
-	- RT #39147 by DAGOLDEN
+==============================
+2010-03-30 22:48:25 +0100 2.16
+==============================
 
-2.08	Mon May 19 13:41:56 BST 2008
-	- Removed kwalitee test
-	- Added license information
-	- Changed test to use Test::POE::Server::TCP
+  commit 00c534a2e9f997014662fada1ab5356bb01a9157
+  Author: Chris Williams <chris@bingosnet.co.uk>
+  Date:   Tue Mar 30 22:48:25 2010 +0100
+  
+    Attempt to address RT #55899 reported by Ryan Chan by setting the
+    SO_KEEPALIVE socket option 
 
-2.06	Fri Mar  7 06:59:15 GMT 2008
-	- Kwalitee changes and fixes.
+==============================
+2009-12-22 14:35:18 +0000 2.14
+==============================
 
-2.04	Wed Oct 31 17:22:55 GMT 2007
-	- Updated Module::Install to 0.68
+  commit 12fe096181de28b8a34018fea078a7f7c4224423
+  Author: Chris Williams <chris@bingosnet.co.uk>
+  Date:   Tue Dec 22 14:35:18 2009 +0000
+  
+    Add SSL support, RT #52615 requested by Arcanez (Justin Hunter) 
 
-2.03	Sun Aug 05 11:25:11 BST 2007
-	- Fixed abstract_from and build_requires in Makefile.PL
-
-2.02	Mon Feb 19 10:31:56 GMT 2007
-	- Added kwalitee test.
-
-2.01	Mod Dec 04 19:04:08 GMT 2006
-	- Changes to PoCo-Component-Pluggable have forced a prereq change.
-
-2.00	Wed Nov 29 14:56:34 GMT 2006
-	- Used PoCo-Pluggable to enable plugin support.
-	- Massive documentation changes.
-	- Extended testsuite.
-
-1.05	Tue Nov 28 20:10:10 GMT 2006
-	- Fixed send_post command.
-
-1.04	Mon Sep 25 16:35:06 BST 2006
-	- Switched to Module::Install
-
-1.03	Mon Sep 11 13:13:13 BST 2006
-	- Added disconnect() event
-
-1.02	Fri Sep 08 17:10:34 BST 2006
-	- Added POD tests
-	- Added examples/synopsis.pl
-	- Added Changes >:]
+===================================
+End of changes in the last 365 days
+===================================
