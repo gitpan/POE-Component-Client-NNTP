@@ -7,8 +7,8 @@
 #
 
 package POE::Component::Client::NNTP;
-BEGIN {
-  $POE::Component::Client::NNTP::VERSION = '2.20';
+{
+  $POE::Component::Client::NNTP::VERSION = '2.22';
 }
 
 # ABSTRACT: A POE component that implements an RFC 3977 NNTP client.
@@ -31,11 +31,6 @@ BEGIN {
         import POE::Component::SSLify qw( Client_SSLify );
         $GOT_SSL = 1;
     };
-    eval {
-        require Socket6;
-        import Socket6;
-        $GOT_SOCKET6 = 1;
-    };
 }
 
 sub spawn {
@@ -47,18 +42,18 @@ sub spawn {
 
   croak "Not enough parameters to $package::spawn()" unless $alias;
   croak "Second argument to $package::spawn() must be a hash reference" unless ref $hash eq 'HASH';
-  
+
   $hash->{'NNTPServer'} = "news" unless defined $hash->{'NNTPServer'} or defined $ENV{'NNTPSERVER'};
   $hash->{'NNTPServer'} = $ENV{'NNTPSERVER'} unless defined $hash->{'NNTPServer'};
   $hash->{'Port'} = 119 unless defined $hash->{'Port'};
   $hash->{TimeOut} = 0 unless $hash->{TimeOut} and $hash->{TimeOut} =~ /^\d+$/;
-  if ( $hash->{'UseSSL'} and !$GOT_SSL ) { 
+  if ( $hash->{'UseSSL'} and !$GOT_SSL ) {
      warn "'UseSSL' specified, but could not load POE::Component::SSLify\n";
      $hash->{'UseSSL'} = 0;
   }
-  
+
   my $self = bless { }, $package;
-  
+
   $self->_pluggable_init( prefix => 'nntp_', types => [ 'NNTPSERVER', 'NNTPCMD' ] );
   $self->{remoteserver} = $hash->{'NNTPServer'};
   $self->{serverport} = $hash->{'Port'};
@@ -195,7 +190,7 @@ sub _sock_down {
   delete $self->{'socket'};
   $self->{connected} = 0;
 
-  $kernel->post( $_, 'nntp_disconnected', $self->{'remoteserver'} ) 
+  $kernel->post( $_, 'nntp_disconnected', $self->{'remoteserver'} )
 	  for keys %{ $self->{sessions} };
   undef;
 }
@@ -274,7 +269,7 @@ sub _parseline {
       if ( ( $1 eq '211' and lc $cmd eq 'listgroup' ) or $1 =~ /(100|101|220|221|222|225|215|231|230|282|218|224)/ ) {
         $self->{current_event} = $current_event;
         $self->{current_text} = [ ];
-      } 
+      }
       else {
 	$self->_send_event( 'nntp_' . $1, $2 );
       }
@@ -375,7 +370,7 @@ POE::Component::Client::NNTP - A POE component that implements an RFC 3977 NNTP 
 
 =head1 VERSION
 
-version 2.20
+version 2.22
 
 =head1 SYNOPSIS
 
@@ -408,7 +403,7 @@ version 2.20
 
    sub _start {
 	my ($kernel,$heap) = @_[KERNEL,HEAP];
-	
+
 	# Our session starts, register to receive all events from poco-client-nntp
 	$kernel->post ( 'NNTP-Client' => register => 'all' );
 	# Okay, ask it to connect to the server
@@ -479,10 +474,10 @@ version 2.20
 =head1 DESCRIPTION
 
 POE::Component::Client::NNTP is a POE component that provides non-blocking NNTP access to other
-components and sessions. NNTP is described in RFC 3977 L<http://www.faqs.org/rfcs/rfc3977.html>, 
+components and sessions. NNTP is described in RFC 3977 L<http://www.faqs.org/rfcs/rfc3977.html>,
 please read it before doing anything else.
 
-In your component or session, you spawn a NNTP client component, assign it an alias, and then 
+In your component or session, you spawn a NNTP client component, assign it an alias, and then
 send it a 'register' event to start receiving responses from the component.
 
 The component takes commands in the form of events and returns the salient responses from the NNTP
@@ -494,13 +489,13 @@ server.
 
 =item C<spawn>
 
-Takes two arguments, a kernel alias to christen the new component with and a hashref. 
+Takes two arguments, a kernel alias to christen the new component with and a hashref.
 
 Possible values for the hashref are:
 
-   'NNTPServer', the DNS name or IP address of the NNTP host to connect to; 
+   'NNTPServer', the DNS name or IP address of the NNTP host to connect to;
    'Port', the IP port on that host
-   'LocalAddr', an IP address on the client to connect from. 
+   'LocalAddr', an IP address on the client to connect from.
    'UseSSL', set to a true value to indicate that the poco should use SSL
    'TimeOut', number of seconds to wait for a response from server
 
@@ -541,8 +536,8 @@ The component accepts the following events:
 
 =item C<register>
 
-Takes N arguments: a list of event names that your session wants to listen for, minus the 'nntp_' prefix, ( this is 
-similar to L<POE::Component::IRC> ). 
+Takes N arguments: a list of event names that your session wants to listen for, minus the 'nntp_' prefix, ( this is
+similar to L<POE::Component::IRC> ).
 
 Registering for C<all> will cause it to send all NNTP-related events to you; this is the easiest way to handle it.
 
@@ -552,7 +547,7 @@ Takes N arguments: a list of event names which you don't want to receive. If you
 
 =item C<connect>
 
-Takes no arguments. Tells the NNTP component to start up a connection to the previously specified NNTP server. You will 
+Takes no arguments. Tells the NNTP component to start up a connection to the previously specified NNTP server. You will
 receive a C<nntp_connected> event.
 
 =item C<disconnect>
@@ -659,12 +654,12 @@ specified by message-id.
 
 =item C<authinfo>
 
-Takes two arguments: first argument is either C<user> or C<pass>, second argument is the user or password, respectively. 
+Takes two arguments: first argument is either C<user> or C<pass>, second argument is the user or password, respectively.
 Not technically part of RFC 3977 L<http://www.faqs.org/rfcs/rfc3977.html>, but covered in RFC 2980 L<http://www.faqs.org/rfcs/rfc2980.html>.
 
 =item C<send_cmd>
 
-The catch-all event :) Anything sent to this is passed directly to the NNTP server. Use this to implement any non-RFC 
+The catch-all event :) Anything sent to this is passed directly to the NNTP server. Use this to implement any non-RFC
 commands that you want, or to completely bypass all the above if you so desire.
 
 =back
@@ -695,13 +690,13 @@ Generated when the component fails to establish a connection to the NNTP server.
 
 =item C<Numeric> responses ( See RFC 977 and RFC 2980 )
 
-Messages generated by NNTP servers consist of a numeric code and a text response. These will be sent to you as 
+Messages generated by NNTP servers consist of a numeric code and a text response. These will be sent to you as
 events with the numeric code prefixed with C<nntp_>. C<ARG0>is the text response.
 
 Certain responses return following text, such as the C<ARTICLE> command, which returns the specified article. These responses
 are returned in an array ref contained in C<ARG1>.
 
-Eg. 
+Eg.
 
   $kernel->post( 'NNTP-Client' => article => $article_num );
 
@@ -767,11 +762,11 @@ Possible nntp_ values are:
 =head1 PLUGINS
 
 POE::Component::Client::NNTP now utilises L<POE::Component::Pluggable> to enable a
-L<POE::Component::IRC> type plugin system. 
+L<POE::Component::IRC> type plugin system.
 
 =head2 PLUGIN HANDLER TYPES
 
-There are two types of handlers that can registered for by plugins, these are 
+There are two types of handlers that can registered for by plugins, these are
 
 =over
 
@@ -782,7 +777,7 @@ passed as scalar refs so that you may mangle the values if required.
 
 =item C<NNTPCMD>
 
-These are generated whenever an nntp command is sent to the component. Again, any 
+These are generated whenever an nntp command is sent to the component. Again, any
 arguments passed are scalar refs for manglement.
 
 =back
@@ -790,7 +785,7 @@ arguments passed are scalar refs for manglement.
 =head2 PLUGIN EXIT CODES
 
 Plugin handlers should return a particular value depending on what action they wish
-to happen to the event. These values are available as constants which you can use 
+to happen to the event. These values are available as constants which you can use
 with the following line:
 
   use POE::Component::Client::NNTP::Constants qw(:ALL);
@@ -927,7 +922,7 @@ The basic anatomy of a plugin is:
 
         package Plugin;
 
-        # Import the constants, of course you could provide your own 
+        # Import the constants, of course you could provide your own
         # constants as long as they map correctly.
         use POE::Component::NNTP::Constants qw( :ALL );
 
@@ -986,7 +981,7 @@ Chris Williams <chris@bingosnet.co.uk>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2010 by Chris Williams and Dennis Taylor.
+This software is copyright (c) 2011 by Chris Williams and Dennis Taylor.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

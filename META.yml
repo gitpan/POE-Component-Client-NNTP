@@ -6,9 +6,9 @@ build_requires:
   Test::More: 0.47
   Test::POE::Server::TCP: 0
 configure_requires:
-  ExtUtils::MakeMaker: 6.31
+  ExtUtils::MakeMaker: 6.30
 dynamic_config: 0
-generated_by: 'Dist::Zilla version 4.101612, CPAN::Meta::Converter version 2.101670'
+generated_by: 'Dist::Zilla version 4.200018, CPAN::Meta::Converter version 2.112150'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -24,6 +24,6 @@ requires:
   POE::Wheel::SocketFactory: 0
   perl: 5.006
 resources:
-  homepage: http://github.com/bingos/poe-component-client-nntp/tree
-  repository: git://github.com/bingos/poe-component-client-nntp.git
-version: 2.20
+  homepage: https://github.com/bingos/poe-component-client-nntp
+  repository: https://github.com/bingos/poe-component-client-nntp.git
+version: 2.22

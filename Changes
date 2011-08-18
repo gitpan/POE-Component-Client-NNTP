@@ -1,4 +1,20 @@
 ==============================
+2011-08-18 21:43:19 +0100 2.22
+==============================
+
+  commit a65a315c587b93a0e292df1710caca7cb3f07238
+  Author: Chris 'BinGOs' Williams <chris@bingosnet.co.uk>
+  Date:   Thu Aug 18 21:43:19 2011 +0100
+  
+    Remove unused Socket6 calls.
+
+  commit b87521d1b5562207752ae15bb01f918175c1a2fb
+  Author: Chris 'BinGOs' Williams <chris@bingosnet.co.uk>
+  Date:   Wed Aug 17 09:30:03 2011 +0100
+  
+    Strip trailing whitespace 
+
+==============================
 2010-06-18 16:22:17 +0100 2.20
 ==============================
 
@@ -67,6 +83,6 @@
   
     Add SSL support, RT #52615 requested by Arcanez (Justin Hunter) 
 
-===================================
-End of changes in the last 365 days
-===================================
+====================================
+End of changes in the last 1825 days
+====================================

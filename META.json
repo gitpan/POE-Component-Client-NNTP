@@ -4,7 +4,7 @@
       "Chris Williams <chris@bingosnet.co.uk>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Dist::Zilla version 4.101612, CPAN::Meta::Converter version 2.101670",
+   "generated_by" : "Dist::Zilla version 4.200018, CPAN::Meta::Converter version 2.112150",
    "license" : [
       "perl_5"
    ],
@@ -22,7 +22,7 @@
       },
       "configure" : {
          "requires" : {
-            "ExtUtils::MakeMaker" : "6.31"
+            "ExtUtils::MakeMaker" : "6.30"
          }
       },
       "runtime" : {
@@ -40,13 +40,13 @@
    },
    "release_status" : "stable",
    "resources" : {
-      "homepage" : "http://github.com/bingos/poe-component-client-nntp/tree",
+      "homepage" : "https://github.com/bingos/poe-component-client-nntp",
       "repository" : {
          "type" : "git",
-         "url" : "git://github.com/bingos/poe-component-client-nntp.git",
-         "web" : "http://github.com/bingos/poe-component-client-nntp/tree"
+         "url" : "https://github.com/bingos/poe-component-client-nntp.git",
+         "web" : "https://github.com/bingos/poe-component-client-nntp"
       }
    },
-   "version" : "2.20"
+   "version" : "2.22"
 }
 

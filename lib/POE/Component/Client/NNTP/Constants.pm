@@ -1,6 +1,6 @@
 package POE::Component::Client::NNTP::Constants;
-BEGIN {
-  $POE::Component::Client::NNTP::Constants::VERSION = '2.20';
+{
+  $POE::Component::Client::NNTP::Constants::VERSION = '2.22';
 }
 
 # ABSTRACT: importable constants for POE::Component::Client::NNTP plugins.
@@ -31,7 +31,7 @@ POE::Component::Client::NNTP::Constants - importable constants for POE::Componen
 
 =head1 VERSION
 
-version 2.20
+version 2.22
 
 =head1 SYNOPSIS
 
@@ -75,7 +75,7 @@ Chris Williams <chris@bingosnet.co.uk>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2010 by Chris Williams and Dennis Taylor.
+This software is copyright (c) 2011 by Chris Williams and Dennis Taylor.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

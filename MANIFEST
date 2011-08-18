@@ -1,10 +1,12 @@
 Changes
+Changes.old
 LICENSE
 MANIFEST
 META.json
 META.yml
 Makefile.PL
 README
+README.old
 dist.ini
 examples/synopsis.pl
 lib/POE/Component/Client/NNTP.pm

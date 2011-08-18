@@ -3,7 +3,7 @@ NAME
     3977 NNTP client.
 
 VERSION
-    version 2.20
+    version 2.22
 
 SYNOPSIS
        # Connects to NNTP Server, selects a group, then downloads all current articles.
@@ -35,7 +35,7 @@ SYNOPSIS
 
        sub _start {
             my ($kernel,$heap) = @_[KERNEL,HEAP];
-        
+
             # Our session starts, register to receive all events from poco-client-nntp
             $kernel->post ( 'NNTP-Client' => register => 'all' );
             # Okay, ask it to connect to the server
@@ -123,9 +123,9 @@ CONSTRUCTOR
 
         Possible values for the hashref are:
 
-           'NNTPServer', the DNS name or IP address of the NNTP host to connect to; 
+           'NNTPServer', the DNS name or IP address of the NNTP host to connect to;
            'Port', the IP port on that host
-           'LocalAddr', an IP address on the client to connect from. 
+           'LocalAddr', an IP address on the client to connect from.
            'UseSSL', set to a true value to indicate that the poco should use SSL
            'TimeOut', number of seconds to wait for a response from server
 
@@ -512,7 +512,7 @@ PLUGINS
 
             package Plugin;
 
-            # Import the constants, of course you could provide your own 
+            # Import the constants, of course you could provide your own
             # constants as long as they map correctly.
             use POE::Component::NNTP::Constants qw( :ALL );
 
@@ -570,7 +570,7 @@ AUTHOR
     Chris Williams <chris@bingosnet.co.uk>
 
 COPYRIGHT AND LICENSE
-    This software is copyright (c) 2010 by Chris Williams and Dennis Taylor.
+    This software is copyright (c) 2011 by Chris Williams and Dennis Taylor.
 
     This is free software; you can redistribute it and/or modify it under
     the same terms as the Perl 5 programming language system itself.
